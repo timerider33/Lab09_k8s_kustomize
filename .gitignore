@@ -36,3 +36,4 @@ Thumbs.db
 kubectl
 *.deb
 kubectl
+get_helm.sh

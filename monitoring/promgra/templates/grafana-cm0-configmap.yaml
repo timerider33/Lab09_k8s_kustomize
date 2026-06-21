@@ -1,0 +1,22 @@
+apiVersion: v1
+data:
+  datasource.yml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        # Grafana понимает, что источник данных именно Prometheus.
+        type: prometheus
+        # Это адрес Prometheus внутри docker compose сети, не localhost моей машины.
+        url: http://prometheus:9090
+        # Новый dashboard будет по умолчанию брать данные отсюда.
+        isDefault: true
+        # Запросы к Prometheus делает backend Grafana.
+        access: proxy
+        # В лабораторной можно править datasource через UI Grafana.
+        editable: true
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: grafana
+  name: grafana-cm0

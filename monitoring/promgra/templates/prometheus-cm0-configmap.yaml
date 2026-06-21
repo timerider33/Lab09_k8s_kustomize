@@ -1,0 +1,94 @@
+apiVersion: v1
+data:
+  prometheus.yml: |
+    global:
+      # Как часто Prometheus по умолчанию ходит за метриками.
+      scrape_interval: 5s
+      # Если target не ответил за 3 секунды, считаем попытку неуспешной.
+      scrape_timeout: 3s
+      evaluation_interval: 15s
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: []
+          scheme: http
+          timeout: 10s
+          api_version: v2
+
+    scrape_configs:
+      # Сбор метрик самого себя, чтобы видеть состояние Prometheus.
+      - job_name: prometheus
+        metrics_path: /metrics
+        static_configs:
+          - targets:
+              - localhost:9090
+
+      # Сбор нативной метрики view_count с приложения Flask.
+      - job_name: view_total
+        metrics_path: /metrics
+        scrape_interval: 15s
+        scrape_timeout: 10s
+        static_configs:
+          - targets:
+              # Из контейнера Prometheus так обращаюсь к Flask, который опубликован на хосте.
+              - host.docker.internal:8000
+            labels:
+              service: Flask-Redis-App
+
+      # Сбор метрик с Blackbox.
+      - job_name: blackbox-http
+        # Увеличим время проверок, т.к. внешние сайты иногда отвечают долго.
+        scrape_interval: 15s
+        scrape_timeout: 10s
+        metrics_path: /probe
+        params:
+          # Сделай HTTP-запрос и считай проверку успешной, если ответ имеет код 2xx.
+          module: [http_2xx]
+        static_configs:
+          # URL, которые проверяем через Blackbox: сам Docker host и внешние цели.
+          - targets:
+              - http://host.docker.internal:8000/
+              - https://etis.psu.ru/
+              - https://ya.ru/
+              - https://www.amazon.com/
+
+        # Эти relabel правила превращают target в параметр target для Blackbox.
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+
+          - source_labels: [__param_target]
+            # instance будет равен реальному URL сайта, так удобнее смотреть графики.
+            target_label: instance
+
+          - target_label: __address__
+            # А сам запрос Prometheus реально отправляет в контейнер blackbox.
+            replacement: blackbox:9115
+
+      # Сбор метрик с Blackbox для сайтов с проблемной TLS-цепочкой.
+      # Проверка сертификата здесь отключена, отдельный insecure профиль из blackbox.yml.
+      - job_name: blackbox-http-insecure
+        scrape_interval: 15s
+        scrape_timeout: 10s
+        metrics_path: /probe
+        params:
+          # Использую отдельный модуль, чтобы не отключать TLS-проверку для всех сайтов.
+          module: [http_2xx_insecure]
+        static_configs:
+          - targets:
+              - https://student.psu.ru
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+
+          - source_labels: [__param_target]
+            target_label: instance
+
+          - target_label: __address__
+            replacement: blackbox:9115
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: prometheus
+  name: prometheus-cm0

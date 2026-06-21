@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -c -f compose.yml
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: prometheus
+  name: prometheus
+spec:
+# Добавляем тип сервиса т.к. по умолчанию будет ClusterIP недоступный за пределами кластера, а мы ходим сюда через хостовую ОС через minikube tunnel
+  type: LoadBalancer
+  ports:
+    - name: "9090"
+      port: 9090
+      targetPort: 9090
+  selector:
+    io.kompose.service: prometheus
