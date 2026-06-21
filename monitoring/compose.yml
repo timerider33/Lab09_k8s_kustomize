@@ -1,0 +1,61 @@
+services:
+  prometheus:
+    # Prometheus будет опрашивать targets из prometheus.yml.
+    image: prom/prometheus
+    container_name: prometheus
+    command:
+      # Явно говорю Prometheus, где лежит его конфиг внутри контейнера.
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      # Web-интерфейс Prometheus на моей машине.
+      - "9090:9090"
+    restart: unless-stopped
+    # Чтоб Prometheus мог стучаться на сервисы, опубликованные на хосте вне контейнера.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Пробрасываю папку с конфигом внутрь контейнера.
+      - ./prometheus:/etc/prometheus
+      # Данные Prometheus хранятся в named volume, чтобы не пропали после restart.
+      - prom_data:/prometheus
+
+  grafana:
+    # Grafana нужна для красивых графиков поверх метрик из Prometheus.
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      # Учебный логин и пароль, чтобы не искать дефолты.
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+    volumes:
+      # Автоматически добавляю Prometheus как datasource.
+      - ./grafana:/etc/grafana/provisioning/datasources
+      # Тут Grafana хранит свои настройки и dashboards.
+      - grafana_data:/var/lib/grafana
+
+  blackbox:
+    # Blackbox Exporter не хранит метрики, а делает проверки по запросу Prometheus.
+    image: prom/blackbox-exporter
+    container_name: blackbox
+    # Явно укажем DNS, т.к. есть странности с длительным резолвингом.
+    dns:
+      - 192.168.1.57
+    # Отдельный конфиг файл для Blackbox.
+    command:
+      - "--config.file=/etc/blackbox_exporter/blackbox.yml"
+    ports:
+      - "9115:9115"
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Добавили отдельный volume для файла с конфигом Blackbox.
+    volumes:
+      - ./blackbox:/etc/blackbox_exporter
+
+volumes:
+  # Named volumes создаются Docker'ом и живут отдельно от контейнеров.
+  prom_data:
+  grafana_data:

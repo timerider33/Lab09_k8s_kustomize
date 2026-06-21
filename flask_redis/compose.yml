@@ -1,0 +1,17 @@
+services:
+  web:
+    # Собираем Flask-приложение из файлов текущей папки.
+    build:
+      context: .
+      # Можно явно указать докерфайл, потому что файл назван dockerfile с маленькой буквы.
+      dockerfile: dockerfile
+    ports:
+      # Слева порт на моей машине, справа порт внутри контейнера Flask.
+      - '8000:5000'
+    # После перезагрузки Docker контейнер снова поднимется, если я сам его не остановил.
+    restart: unless-stopped
+  redis:
+    # Легкий образ Redis, подходит для лабораторной.
+    image: 'redis:alpine'
+    # Redis тоже должен переживать перезапуск Docker.
+    restart: unless-stopped

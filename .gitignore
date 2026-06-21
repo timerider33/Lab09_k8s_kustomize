@@ -1,0 +1,38 @@
+# Environment files
+.env
+.env.*
+
+# Private keys and certificates
+*.pem
+*.key
+*.crt
+id_rsa
+id_ed25519
+
+# Kubernetes / cloud secrets
+*.kubeconfig
+secrets/
+
+# Logs
+*.log
+logs/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Ansible retry files
+*.retry
+
+# Terraform local state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# OS/editor garbage
+.DS_Store
+Thumbs.db
+.vscode/*.log
+kubectl
+*.deb
+kubectl

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+# Deployment следит, чтобы нужное количество Pod с Flask всегда было запущено.
+kind: Deployment
+
+metadata:
+  name: flask-app
+  labels:
+    app: flask-app
+
+spec:
+  # запускаю 5 копий, чтобы увидеть балансировку между Pod.
+  replicas: 5
+
+  # selector должен совпадать с labels ниже в template, иначе Deployment не найдет свои Pod.
+  selector:
+    matchLabels:
+      app: flask-app
+      svc: front
+
+  template:
+    metadata:
+      # Эти labels получат все Pod приложения.
+      # По ним Service потом поймет, куда отправлять трафик.
+      labels:
+        app: flask-app
+        svc: front
+
+    spec:
+      containers:
+        - name: flask
+          # Локальный образ, который собирается командой docker build -t flask:v1. 
+          image: flask:v1
+          # Если образ уже есть локально, Kubernetes не будет тянуть его из registry.
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            # Flask внутри контейнера слушает именно 5000.
+            - containerPort: 5000
+
+          resources:
+            limits:
+              memory: "256Mi"

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+# Redis тоже запускается через Deployment
+kind: Deployment
+
+metadata:
+  name: redis
+  labels:
+    app: flask-app
+
+spec:
+  # Один Redis нужен как общая память для счетчика посещений.
+  replicas: 1
+
+  # selector связывает Deployment с Pod Redis.
+  selector:
+    matchLabels:
+      app: flask-app
+      svc: db
+
+  template:
+    metadata:
+      # Эти labels потом использует redis Service.
+      labels:
+        app: flask-app
+        svc: db
+
+    spec:
+      containers:
+        - name: redis
+          image: redis:alpine
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 6379
+
+          resources:
+            limits:
+              memory: "256Mi"
