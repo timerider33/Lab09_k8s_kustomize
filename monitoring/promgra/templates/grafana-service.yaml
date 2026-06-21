@@ -10,9 +10,12 @@ metadata:
 spec:
 # Добавляем тип сервиса т.к. по умолчанию будет ClusterIP недоступный за пределами кластера, а мы ходим к графане через хостовую ОС через minikube tunnel
   type: LoadBalancer
+  externalIPs:
+    - {{ .Values.EXTERNAL_IP }}
+
   ports:
-    - name: "3000"
-      port: 3000
+    - name: "{{ .Values.EXTERNAL_PORT }}"
+      port: {{ .Values.EXTERNAL_PORT }}
       targetPort: 3000
   selector:
     io.kompose.service: grafana

@@ -25,7 +25,7 @@ spec:
       containers:
         - env:
             - name: GF_SECURITY_ADMIN_PASSWORD
-              value: grafana
+              value: "{{ .Values.GF_ADMIN_PASSWORD }}"
             - name: GF_SECURITY_ADMIN_USER
               value: admin
           image: grafana/grafana
