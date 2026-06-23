@@ -1,4 +1,4 @@
-# Flask + Redis: Docker Compose, Kustomize и monitoring
+# Flask + Redis: Kustomize и monitoring: Helm stack
 
 Лабораторный проект показывает один и тот же стек в нескольких вариантах:
 
