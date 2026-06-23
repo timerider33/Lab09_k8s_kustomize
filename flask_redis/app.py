@@ -6,13 +6,13 @@ from flask import Flask, make_response
 
 app = Flask(__name__)
 
-# В Docker Compose и Kubernetes имя redis разрешается через DNS.
-# В Kubernetes это будет имя Service.
-# Поэтому тут не IP-адрес, а просто имя сервиса redis.
-cache = redis.Redis(
-    host="redis",
-    port=6379,
-)
+
+# Ранее host зашит как redis, надо заменить на переменную окружения
+DB_HOST = os.getenv("REDIS_HOST", "redis")
+# Дополнительно вводим значение текущего окружения
+MY_ENV = os.getenv("ENV", "unknown")
+
+cache = redis.Redis(host=DB_HOST, port=6379)
 
 
 def get_hit_count() -> int:
@@ -58,20 +58,10 @@ view_count{{service="Flask-Redis-App"}} {get_hit_count()}
 
 
 @app.route("/")
-def index():
-    # Главная страница считается настоящим посещением, поэтому увеличиваем hits.
-    count = incr_hit_count()
-    # В Kubernetes hostname обычно равен имени Pod, так видно балансировку между репликами.
-    pod_name = socket.gethostname()
-
-    response_text = (
-        "Hello from Kubernetes!\n"
-        f"Pod: {pod_name}\n"
-        f"Visits: {count}\n"
-        "This is a version 2 of APP. Updated by rolling update"
+def hello():
+    count = get_hit_count()
+    return "Hello World! I have been seen {} times. My name is: {} My env: {}\n".format(
+        count,
+        socket.gethostname(),
+        MY_ENV,
     )
-
-    response = make_response(response_text, 200)
-    # Возвращаю plain text, чтобы curl показывал ответ без HTML.
-    response.mimetype = "text/plain"
-    return response

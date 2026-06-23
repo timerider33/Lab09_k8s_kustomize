@@ -28,8 +28,8 @@ spec:
     spec:
       containers:
         - name: flask
-          # Локальный образ, который собирается командой docker build -t flask:v1. 
-          image: flask:v1
+          # Локальный образ, который собирается c переменными окружения через minikube image build -t flask:v3. 
+          image: flask:v3
           # Если образ уже есть локально, Kubernetes не будет тянуть его из registry.
           imagePullPolicy: IfNotPresent
 

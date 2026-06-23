@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+
+namePrefix: prod-
+
+labels:
+  - includeSelectors: true
+    pairs:
+      env: prod
+
+patchesStrategicMerge:
+  - flask-deployment-patch.yaml
+
+patches:
+  - target:
+      version: v1
+      kind: Service
+      name: service-devops
+    path: flask-service-port-patch.yaml

@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../base
+# Все имена получат prefix
+namePrefix: dev-
+
+# Добавляем env=dev и в labels, и в selectors. Это изолирует dev от prod.
+labels:
+  - includeSelectors: true
+    pairs:
+      env: dev
+
+patchesStrategicMerge:
+  - flask-deployment-patch.yaml
+
+patches:
+  - target:
+      version: v1
+      kind: Service
+      name: service-devops
+    path: flask-service-port-patch.yaml
