@@ -1,4 +1,5 @@
 apiVersion: apps/v1
+# Grafana визуализирует метрики из автоматически подключённого Prometheus.
 kind: Deployment
 metadata:
   annotations:
@@ -24,6 +25,7 @@ spec:
     spec:
       containers:
         - env:
+            # Пароль задаётся через values.yaml.
             - name: GF_SECURITY_ADMIN_PASSWORD
               value: "{{ .Values.GF_ADMIN_PASSWORD }}"
             - name: GF_SECURITY_ADMIN_USER
@@ -34,6 +36,7 @@ spec:
             - containerPort: 3000
               protocol: TCP
           volumeMounts:
+            # ConfigMap подключает datasource, PVC сохраняет данные Grafana.
             - mountPath: /etc/grafana/provisioning/datasources
               name: grafana-cm0
             - mountPath: /var/lib/grafana

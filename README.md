@@ -1,242 +1,174 @@
-# k8s-basics
+# Flask + Redis: Docker Compose, Kustomize и monitoring
 
-Запуск простого Flask-приложения с Redis сначала через Docker Compose, а потом через Kubernetes. Дополнительно рядом лежит стек мониторинга: Prometheus, Grafana и Blackbox Exporter.
+Лабораторный проект показывает один и тот же стек в нескольких вариантах:
 
-Манифесты K8s лежат в папке flask_redis_k8s
+- Kustomize создаёт отдельные конфигурации `dev` и `prod` для flask и redis
+- Prometheus, Grafana и Blackbox Exporter запускаются через Helm.
 
-Главная идея:
-
-- Flask считает посещения главной страницы.
-- Redis хранит счетчик `hits`.
-- Endpoint `/metrics` отдает значение счетчика в формате Prometheus.
-- Prometheus забирает метрики приложения и проверки Blackbox.
-- Grafana подключается к Prometheus и показывает графики.
-
-## Структура проекта
+## Структура
 
 ```text
-k8s-basics/
+k8s_kustomize/
 ├── flask_redis/
 │   ├── app.py
 │   ├── compose.yml
-│   ├── dockerfile
+│   ├── Dockerfile
 │   └── requirements.txt
 ├── flask_redis_k8s/
-│   ├── flask.yml
-│   ├── flask-service.yml
-│   ├── redis.yml
-│   └── redis-service.yml
+│   ├── base/                 # общие Deployment и Service
+│   ├── dev/                  # 1 реплика, dev-префикс, порт 8001
+│   └── prod/                 # 3 реплики, prod-префикс, порт 8002
 ├── monitoring/
 │   ├── compose.yml
-│   ├── blackbox/
-│   │   └── blackbox.yml
+│   ├── prometheus/
 │   ├── grafana/
-│   │   └── datasource.yml
-│   └── prometheus/
-│       └── prometheus.yml
+│   ├── blackbox/
+│   └── promgra/              # Helm chart, созданный через Kompose
 └── README.md
 ```
 
-## Flask + Redis
+## Приложение
 
-Папка: `flask_redis`.
+Flask подключается к Redis по адресу из `REDIS_HOST`. По умолчанию используется
+DNS-имя `redis`.
 
-Сервисы Docker Compose:
+Доступные endpoints:
 
-- `web` - Flask-приложение, собирается из локального `dockerfile`.
-- `redis` - Redis из образа `redis:alpine`.
+- `GET /` — увеличивает счётчик `hits` и возвращает имя контейнера/Pod и окружение;
+- `GET /metrics` — читает счётчик без увеличения и отдаёт метрику `view_count`.
 
-Приложение доступно на хосте:
-
-```text
-http://localhost:8000
-```
-
-Внутри контейнера Flask слушает порт `5000`, а наружу проброшен порт `8000`:
-
-```yaml
-ports:
-  - "8000:5000"
-```
-
-Flask подключается к Redis по имени сервиса:
-
-```python
-redis.Redis(host="redis", port=6379)
-```
-
-В Docker Compose и Kubernetes имя `redis` разрешается через внутренний DNS, поэтому приложению не нужен IP-адрес контейнера или Pod.
-
-## Endpoint приложения
-
-Главная страница:
-
-```text
-GET /
-```
-
-Увеличивает счетчик `hits` в Redis и возвращает текст с именем Pod/контейнера:
-
-```text
-Hello from Kubernetes!
-Pod: <hostname>
-Visits: N
-This is a version 2 of APP. Updated by rolling update
-```
-
-Метрики:
-
-```text
-GET /metrics
-```
-
-Возвращает метрику Prometheus:
+Пример метрики:
 
 ```text
 # HELP view_count Flask-Redis-App visit counter
 # TYPE view_count counter
-view_count{service="Flask-Redis-App"} N
+view_count{service="Flask-Redis-App"} 5
 ```
 
-`/metrics` только читает счетчик и не увеличивает его. Иначе Prometheus сам накручивал бы просмотры при каждом опросе.
+## Kubernetes и Kustomize
 
-## Запуск через Docker Compose
+Базовые ресурсы находятся в `flask_redis_k8s/base`:
+
+- `flask.yml` — Deployment Flask с образом `flask:v5`;
+- `flask-service.yml` — LoadBalancer Service приложения;
+- `redis.yml` — Deployment Redis;
+- `redis-service.yml` — внутренний ClusterIP Service с DNS-именем `redis`.
+
+Overlays изменяют базовую конфигурацию:
+
+| Окружение | Ресурсы | Реплики Flask | Service port | `REDIS_HOST` |
+| --- | --- | ---: | ---: | --- |
+| dev | префикс `dev-`, label `env=dev` | 1 | 8001 | `dev-redis` |
+| prod | префикс `prod-`, label `env=prod` | 3 | 8002 | `prod-redis` |
+
+### Подготовка образа в Minikube
+
+Тег образа должен совпадать с `image` в
+`flask_redis_k8s/base/flask.yml`.
 
 ```bash
-cd /home/ops/projects/k8s-basics/flask_redis
-docker compose up -d --build
+cd /home/ops/projects/k8s_kustomize/flask_redis
+minikube image build -t flask:v5 .
 ```
 
-`--build` нужен, если менялись `app.py`, `requirements.txt` или `dockerfile`.
+### Просмотр итоговых манифестов
+
+```bash
+cd /home/ops/projects/k8s_kustomize
+kubectl kustomize flask_redis_k8s/dev
+kubectl kustomize flask_redis_k8s/prod
+```
+
+### Развёртывание
+
+Можно запустить оба окружения одновременно:
+
+```bash
+kubectl apply -k flask_redis_k8s/dev
+kubectl apply -k flask_redis_k8s/prod
+kubectl get deployments,pods,services
+```
+
+Для локального кластера LoadBalancer-адреса обычно предоставляет:
+
+```bash
+minikube tunnel
+```
+
+Если LoadBalancer недоступен, используйте port-forward:
+
+```bash
+# команды в разных терминалах.
+kubectl port-forward service/dev-service-devops 8001:8001
+kubectl port-forward service/prod-service-devops 8002:8002
+```
 
 Проверка:
 
 ```bash
-curl http://127.0.0.1:8000/
-curl http://127.0.0.1:8000/metrics
+curl http://127.0.0.1:8001/
+curl http://127.0.0.1:8001/metrics
+curl http://127.0.0.1:8002/
 ```
 
-Остановка (чтоб запустить через K8s):
+Удаление:
 
 ```bash
-docker compose down
+kubectl delete -k flask_redis_k8s/dev
+kubectl delete -k flask_redis_k8s/prod
 ```
 
-## Запуск через Kubernetes
+## Обновление приложения
 
-Папка: `flask_redis_k8s`.
-
-Манифесты:
-
-- `redis.yml` - Deployment с одним Pod Redis.
-- `redis-service.yml` - ClusterIP Service с именем `redis`.
-- `flask.yml` - Deployment Flask-приложения на 5 реплик.
-- `flask-service.yml` - Service для доступа к Flask снаружи кластера.
-
-Перед применением манифестов нужен локальный Docker-образ:
+После изменения `app.py` нужно пересобирать образ. При повторном использовании того
+же тега перезапустить Deployment:
 
 ```bash
-cd /home/ops/projects/k8s-basics/flask_redis
-docker build -t flask:v1 -f dockerfile .
+cd /home/ops/projects/k8s_kustomize/flask_redis
+minikube image build -t flask:v5 .
+
+kubectl rollout restart deployment/dev-flask-app
+kubectl rollout restart deployment/prod-flask-app
+kubectl rollout status deployment/dev-flask-app
+kubectl rollout status deployment/prod-flask-app
 ```
 
-Применить Kubernetes-манифесты:
+Для более предсказуемых обновлений лучше создавать новый тег образа и менять
+его в base-манифесте.
+
+## Monitoring через Docker Compose
 
 ```bash
-cd /home/ops/projects/k8s-basics/flask_redis_k8s
-kubectl apply -f redis.yml
-kubectl apply -f redis-service.yml
-kubectl apply -f flask.yml
-kubectl apply -f flask-service.yml
-```
-
-Проверить ресурсы:
-
-```bash
-kubectl get pods
-kubectl get deployments
-kubectl get services
-```
-
-В `flask-service.yml` указан Service `service-devops` с портом `8000`, который перенаправляет запросы в контейнер Flask на порт `5000`.
-
-Если кластер не поддерживает `LoadBalancer`, для лабораторной проверки можно использовать port-forward:
-
-```bash
-kubectl port-forward service/service-devops 8000:8000
-```
-
-После этого проверка такая же:
-
-```bash
-curl http://127.0.0.1:8000/
-curl http://127.0.0.1:8000/metrics
-```
-
-Удаление ресурсов:
-
-```bash
-kubectl delete -f flask-service.yml
-kubectl delete -f flask.yml
-kubectl delete -f redis-service.yml
-kubectl delete -f redis.yml
-```
-
-## Rolling update
-
-В `app.py` сейчас в ответе есть строка:
-
-```text
-This is a version 2 of APP. Updated by rolling update
-```
-
-Это состояние уже после update через kubectl set image deployment/flask-app flask=flask:v2
-В манифесте все еще старая версия приложения flask:v1
-
-По ответам разных Pod видно, какая версия приложения сейчас обслуживает запросы.
-
-Типовой сценарий:
-
-```bash
-cd /home/ops/projects/k8s-basics/flask_redis
-docker build -t flask:v1 -f dockerfile .
-
-kubectl rollout restart deployment/flask-app
-kubectl rollout status deployment/flask-app
-```
-
-Если используется новый тег образа, его надо указать в `flask_redis_k8s/flask.yml` в поле `image`.
-
-## Monitoring
-
-Папка: `monitoring`.
-
-Сервисы:
-
-- `prometheus` - собирает и хранит метрики.
-- `grafana` - показывает dashboards и графики.
-- `blackbox` - проверяет доступность HTTP/HTTPS-сервисов.
-
-Доступные URL:
-
-```text
-Prometheus:        http://localhost:9090
-Grafana:           http://localhost:3000
-Blackbox Exporter: http://localhost:9115
-```
-
-Логин Grafana по умолчанию:
-
-```text
-admin / grafana
-```
-
-Запуск:
-
-```bash
-cd /home/ops/projects/k8s-basics/monitoring
+cd /home/ops/projects/k8s_kustomize/monitoring
 docker compose up -d
 ```
+
+Интерфейсы:
+
+- Prometheus — <http://localhost:9090>;
+- Grafana — <http://localhost:3000>, логин `admin`, пароль `grafana`;
+- Blackbox Exporter — <http://localhost:9115>.
+
+Prometheus собирает:
+
+- собственные метрики;
+- `view_count` с `host.docker.internal:8000/metrics`;
+- результаты HTTP-проверок через Blackbox Exporter.
+
+Полезные PromQL-запросы:
+
+```promql
+view_count{job="view_total"}
+rate(view_count{job="view_total"}[30s])
+probe_success
+```
+
+Для Blackbox реальную доступность цели показывает `probe_success`. Метрика
+`up` сообщает только о том, смог ли Prometheus получить ответ от exporter.
+
+В `monitoring/compose.yml` для Blackbox указан DNS-сервер `192.168.1.57`.
+Это настройка конкретной лабораторной сети; при запуске в другой сети её нужно
+заменить или удалить.
 
 Остановка:
 
@@ -244,139 +176,64 @@ docker compose up -d
 docker compose down
 ```
 
-## Prometheus
-
-Конфиг: `monitoring/prometheus/prometheus.yml`.
-
-Prometheus собирает:
-
-- собственные метрики Prometheus с `localhost:9090/metrics`;
-- метрику Flask `view_count` с `host.docker.internal:8000/metrics`;
-- HTTP-проверки через Blackbox Exporter.
-
-`host.docker.internal` используется, чтобы контейнер Prometheus мог обращаться к сервису, опубликованному на хосте на порту `8000`.
-
-Для скорости посещений в Grafana можно использовать PromQL:
-
-```promql
-rate(view_count{job="view_total"}[30s])
-```
-
-Для общего значения счетчика:
-
-```promql
-view_count{job="view_total"}
-```
-
-## Blackbox Exporter
-
-Конфиг Blackbox: `monitoring/blackbox/blackbox.yml`.
-
-В нем настроены два модуля:
-
-- `http_2xx` - обычная HTTP/HTTPS-проверка с проверкой TLS-сертификата.
-- `http_2xx_insecure` - учебная проверка HTTPS без строгой проверки TLS-сертификата.
-
-Обычные цели проверяются job `blackbox-http`:
-
-```text
-http://host.docker.internal:8000/
-https://etis.psu.ru/
-https://ya.ru/
-https://www.amazon.com/
-```
-
-Цель с проблемной TLS-цепочкой вынесена в отдельный job `blackbox-http-insecure`:
-
-```text
-https://student.psu.ru
-```
-
-Для доступности сайта в Grafana нужно смотреть:
-
-```promql
-probe_success
-```
-
-`up` для blackbox показывает, что Prometheus смог опросить сам Blackbox Exporter. Реальный результат HTTP-проверки сайта показывает именно `probe_success`.
-
-## DNS Blackbox
-
-В `monitoring/compose.yml` для `blackbox` явно задан DNS:
-
-```yaml
-dns:
-  - 192.168.1.57
-```
-
-Это сделано из-за долгого DNS lookup при проверках внешних сайтов. Вероятно, это локальная особенность Docker DNS в лабораторном окружении.
-
-## Grafana
-
-Конфиг datasource: `monitoring/grafana/datasource.yml`.
-
-Grafana автоматически подключает Prometheus:
-
-```text
-http://prometheus:9090
-```
-
-Это внутренний адрес Docker Compose. Контейнер Grafana обращается к контейнеру Prometheus по имени сервиса `prometheus`.
-
-## Памятка по изменениям
-
-Если изменился `flask_redis/app.py`, `requirements.txt` или `dockerfile`:
-
-```bash
-cd /home/ops/projects/k8s-basics/flask_redis
-docker compose up -d --build
-```
-
-Если изменились Kubernetes-манифесты:
-
-```bash
-cd /home/ops/projects/k8s-basics/flask_redis_k8s
-kubectl apply -f .
-```
-
-Если изменился `monitoring/prometheus/prometheus.yml`:
-
-```bash
-cd /home/ops/projects/k8s-basics/monitoring
-docker compose restart prometheus
-```
-
-Если изменился `monitoring/blackbox/blackbox.yml`:
-
-```bash
-cd /home/ops/projects/k8s-basics/monitoring
-docker compose restart blackbox
-```
-
-Если изменился `monitoring/compose.yml`:
-
-```bash
-cd /home/ops/projects/k8s-basics/monitoring
-docker compose up -d
-```
-
-`docker compose up -d` читает compose-файл и создает или пересоздает контейнеры, если изменилась их конфигурация.
-
-`docker compose restart <service>` просто перезапускает уже созданный контейнер, не меняя его конфигурацию.
-
-## Volumes
-
-В `monitoring/compose.yml` используются named volumes:
-
-- `prom_data` - данные Prometheus: временные ряды, WAL, служебное состояние.
-- `grafana_data` - данные Grafana: настройки, dashboards, плагины, локальная база.
-
-Обычный `docker compose down` не удаляет эти volumes.
-
-Команда ниже удалит контейнеры вместе с данными:
+Named volumes `prom_data` и `grafana_data` сохраняются. Удаление контейнеров
+вместе с данными:
 
 ```bash
 docker compose down -v
 ```
 
-Это удалит историю Prometheus и локальные данные Grafana.
+## Monitoring через Helm
+
+Chart `monitoring/promgra` создан из Compose с помощью Kompose и разворачивает
+Prometheus, Grafana и Blackbox Exporter в Kubernetes.
+
+Перед установкой проверить `monitoring/promgra/values.yaml`:
+
+- `EXTERNAL_IP` — адрес для публикации Grafana;
+- `EXTERNAL_PORT` — внешний порт Grafana;
+- `GF_ADMIN_PASSWORD` — учебный пароль администратора.
+
+Проверка и рендеринг:
+
+```bash
+helm lint monitoring/promgra
+helm template promgra monitoring/promgra
+```
+
+Установка:
+
+```bash
+helm upgrade --install promgra monitoring/promgra
+kubectl get pods,services,pvc
+```
+
+Для Minikube может понадобиться отдельный процесс:
+
+```bash
+minikube tunnel
+```
+
+Удаление release:
+
+```bash
+helm uninstall promgra
+```
+
+## Проверка после изменений
+
+```bash
+docker compose -f flask_redis/compose.yml config
+docker compose -f monitoring/compose.yml config
+kubectl kustomize flask_redis_k8s/dev
+kubectl kustomize flask_redis_k8s/prod
+helm lint monitoring/promgra
+```
+
+После изменения конфигов monitoring:
+
+```bash
+cd /home/ops/projects/k8s_kustomize/monitoring
+docker compose restart prometheus
+docker compose restart blackbox
+```

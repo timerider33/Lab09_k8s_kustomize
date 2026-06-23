@@ -8,7 +8,7 @@ metadata:
     io.kompose.service: blackbox
   name: blackbox
 spec:
-# Добавляем тип сервиса т.к. по умолчанию будет ClusterIP недоступный за пределами кластера, а мы ходим сюда через хостовую ОС через minikube tunnel
+  # LoadBalancer открывает UI exporter через minikube tunnel.
   type: LoadBalancer
   ports:
     - name: "9115"

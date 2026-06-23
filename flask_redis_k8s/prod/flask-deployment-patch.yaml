@@ -3,13 +3,16 @@ kind: Deployment
 metadata:
   name: flask-app
 spec:
+  # В prod запускаем несколько реплик Flask.
   replicas: 3
   template:
     spec:
       containers:
         - name: flask
           env:
+            # Приложение показывает окружение в ответе.
             - name: ENV
               value: PRODUCTION
+            # namePrefix переименует Service Redis в prod-redis.
             - name: REDIS_HOST
               value: prod-redis

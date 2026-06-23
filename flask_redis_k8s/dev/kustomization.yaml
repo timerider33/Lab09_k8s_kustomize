@@ -3,7 +3,8 @@ kind: Kustomization
 
 resources:
   - ../base
-# Все имена получат prefix
+
+# Все имена ресурсов получат префикс dev-.
 namePrefix: dev-
 
 # Добавляем env=dev и в labels, и в selectors. Это изолирует dev от prod.
@@ -12,10 +13,9 @@ labels:
     pairs:
       env: dev
 
-patchesStrategicMerge:
-  - flask-deployment-patch.yaml
-
+# Первый патч задаёт dev-параметры Deployment, второй меняет порт Service.
 patches:
+  - path: flask-deployment-patch.yaml
   - target:
       version: v1
       kind: Service

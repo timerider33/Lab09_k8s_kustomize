@@ -3,13 +3,16 @@ kind: Deployment
 metadata:
   name: flask-app
 spec:
+  # В dev достаточно одной реплики.
   replicas: 1
   template:
     spec:
       containers:
         - name: flask
           env:
+            # Приложение показывает окружение в ответе.
             - name: ENV
               value: DEVELOPMENT
+            # namePrefix переименует Service Redis в dev-redis.
             - name: REDIS_HOST
               value: dev-redis

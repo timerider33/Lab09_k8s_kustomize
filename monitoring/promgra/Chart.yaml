@@ -1,4 +1,5 @@
 name: promgra
+# Учебный Helm chart для стека мониторинга, созданного из Compose через Kompose.
 description: Prometheus Grafana Blackbox monitoring stack made by Kompose
 version: 0.1.0
 apiVersion: v2

@@ -1,3 +1,5 @@
+# Адрес и порт, через которые Grafana публикуется за пределами кластера.
 EXTERNAL_IP: 10.0.22.2
 EXTERNAL_PORT: 3000
+# Учебный пароль администратора Grafana.
 GF_ADMIN_PASSWORD: grafana

@@ -8,8 +8,9 @@ metadata:
     io.kompose.service: grafana
   name: grafana
 spec:
-# Добавляем тип сервиса т.к. по умолчанию будет ClusterIP недоступный за пределами кластера, а мы ходим к графане через хостовую ОС через minikube tunnel
+  # LoadBalancer публикует Grafana через minikube tunnel.
   type: LoadBalancer
+  # Значения адреса и порта берутся из values.yaml.
   externalIPs:
     - {{ .Values.EXTERNAL_IP }}
 

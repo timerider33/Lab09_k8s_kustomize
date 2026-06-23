@@ -1,4 +1,5 @@
 apiVersion: apps/v1
+# Prometheus собирает метрики и результаты Blackbox-проверок.
 kind: Deployment
 metadata:
   annotations:
@@ -31,6 +32,7 @@ spec:
             - containerPort: 9090
               protocol: TCP
           volumeMounts:
+            # ConfigMap содержит настройки scrape, PVC — базу метрик.
             - mountPath: /etc/prometheus
               name: prometheus-cm0
             - mountPath: /prometheus

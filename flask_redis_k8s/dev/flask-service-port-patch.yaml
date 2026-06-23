@@ -1,3 +1,4 @@
+# JSON Patch меняет внешний порт Flask Service для dev.
 - op: replace
   path: /spec/ports/0/port
   value: 8001

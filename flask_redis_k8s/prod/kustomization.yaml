@@ -4,17 +4,18 @@ kind: Kustomization
 resources:
   - ../base
 
+# Все имена ресурсов получат префикс prod-.
 namePrefix: prod-
 
+# Отдельный label изолирует prod-селекторы от dev.
 labels:
   - includeSelectors: true
     pairs:
       env: prod
 
-patchesStrategicMerge:
-  - flask-deployment-patch.yaml
-
+# Первый патч задаёт prod-параметры Deployment, второй меняет порт Service.
 patches:
+  - path: flask-deployment-patch.yaml
   - target:
       version: v1
       kind: Service

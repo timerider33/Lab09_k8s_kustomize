@@ -1,4 +1,5 @@
 apiVersion: apps/v1
+# Blackbox Exporter выполняет HTTP-проверки по запросу Prometheus.
 kind: Deployment
 metadata:
   annotations:
@@ -31,6 +32,7 @@ spec:
             - containerPort: 9115
               protocol: TCP
           volumeMounts:
+            # Конфигурация prober-модулей приходит из ConfigMap.
             - mountPath: /etc/blackbox_exporter
               name: blackbox-cm0
       restartPolicy: Always
