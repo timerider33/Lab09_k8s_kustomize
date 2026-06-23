@@ -24,8 +24,25 @@ k8s_kustomize/
 │   ├── grafana/
 │   ├── blackbox/
 │   └── promgra/              # Helm chart, созданный через Kompose
+├── results/                  # результаты проверки развёрнутого стенда
+│   ├── helm_status.txt
+│   ├── kubectl_get_all.txt
+│   ├── kubectl_get_deploy.txt
+│   └── kubectl_get_endpoints.txt
 └── README.md
 ```
+
+## Результаты
+
+Папка `results` содержит сохранённый вывод команд проверки развёрнутого стенда:
+
+- `helm_status.txt` — состояние Helm release `promgra`;
+- `kubectl_get_all.txt` — Pod, Service, Deployment и ReplicaSet;
+- `kubectl_get_deploy.txt` — готовность Deployment окружений `dev` и `prod`;
+- `kubectl_get_endpoints.txt` — адреса Pod, выбранных Kubernetes Service.
+
+Файлы подтверждают, что Flask и Redis запущены в обоих окружениях, в `dev`
+работает одна реплика Flask, в `prod` — три, а monitoring установлен через Helm.
 
 ## Приложение
 
