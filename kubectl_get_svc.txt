@@ -1,0 +1,5 @@
+NAME                  TYPE           CLUSTER-IP      EXTERNAL-IP           PORT(S)          AGE
+dev-redis             ClusterIP      10.102.204.48   <none>                6379/TCP         27m
+dev-service-devops    LoadBalancer   10.103.27.96    127.0.0.1,10.0.22.2   8001:31394/TCP   27m
+prod-redis            ClusterIP      10.109.7.38     <none>                6379/TCP         26m
+prod-service-devops   LoadBalancer   10.107.236.6    127.0.0.1,10.0.22.2   8002:31798/TCP   26m

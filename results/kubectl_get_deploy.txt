@@ -1,0 +1,5 @@
+NAME             READY   UP-TO-DATE   AVAILABLE   AGE
+dev-flask-app    1/1     1            1           26m
+dev-redis        1/1     1            1           26m
+prod-flask-app   3/3     3            3           26m
+prod-redis       1/1     1            1           26m

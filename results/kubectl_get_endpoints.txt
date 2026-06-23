@@ -1,0 +1,9 @@
+NAME                  ENDPOINTS                                            AGE
+blackbox              10.244.0.45:9115                                     42h
+dev-redis             10.244.0.46:6379                                     26m
+dev-service-devops    10.244.0.56:5000                                     26m
+grafana               10.244.0.42:3000                                     42h
+kubernetes            192.168.49.2:8443                                    7d18h
+prod-redis            10.244.0.50:6379                                     25m
+prod-service-devops   10.244.0.57:5000,10.244.0.58:5000,10.244.0.59:5000   25m
+prometheus            10.244.0.44:9090                                     42h
